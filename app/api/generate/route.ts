@@ -17,23 +17,31 @@ export async function POST(req: Request) {
       : "Premium integrated build (features + hardscape + irrigation + planting).";
 
   return NextResponse.json({
-    id: crypto.randomUUID(),
-    address,
-    budget,
-    notes,
-    concept: {
-      budgetTier,
-      recommendedFocus,
-      sampleZones: [
-        "Entry xeriscape planting bed",
-        "Backyard shade + seating pocket",
-        "Pollinator corridor strip",
-        "Water-smart drip zones"
-      ],
-      roughCostBuckets: {
-        demo_range_low: Math.round(budget * 0.85),
-        demo_range_high: Math.round(budget * 1.15)
+  id: crypto.randomUUID(),
+  address,
+  budget,
+  notes,
+  photo: photo
+    ? {
+        name: photo.name,
+        type: photo.type,
+        size: photo.size
       }
+    : null,
+  concept: {
+    budgetTier,
+    recommendedFocus,
+    sampleZones: [
+      "Entry xeriscape planting bed",
+      "Backyard shade + seating pocket",
+      "Pollinator corridor strip",
+      "Water-smart drip zones"
+    ],
+    roughCostBuckets: {
+      demo_range_low: Math.round(budget * 0.85),
+      demo_range_high: Math.round(budget * 1.15)
     }
-  });
+  }
+});
+
 }
