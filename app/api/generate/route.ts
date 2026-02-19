@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const { address, budget, notes } = await req.json();
-
+  const { address, budget, notes, photo } = await req.json();
+  
   // Simulate "thinking" so it feels real in the demo
   await new Promise((r) => setTimeout(r, 900));
 
