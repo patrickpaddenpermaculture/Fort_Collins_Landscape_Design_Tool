@@ -1,179 +1,125 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-function formatUSD(n: number) {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
+type Result = {
+  id: string;
+  address: string;
+  budget: number;
+  notes: string;
+  concept: any;
+  imageUrl?: string | null;
+};
 
-export default function Home() {
-  const [address, setAddress] = useState("");
+export default function Page() {
+  const [address, setAddress] = useState("fort collins");
   const [budget, setBudget] = useState(15000);
   const [notes, setNotes] = useState("");
-  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string>("");
-
-  const pretty = useMemo(() => {
-    if (!result) return "";
-    return JSON.stringify(result, null, 2);
-  }, [result]);
+  const [result, setResult] = useState<Result | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function onGenerate() {
     setLoading(true);
-    setErrorMsg("");
+    setError(null);
     setResult(null);
 
     try {
-      const res = await fetch("/api/generate", {
+      const resp = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, budget, notes }),
       });
 
-      const data = await res.json();
+      const data = await resp.json();
 
-      if (!res.ok) {
-        setErrorMsg(data?.details || data?.error || "Request failed");
-        setLoading(false);
-        return;
+      if (!resp.ok) {
+        throw new Error(data?.details || data?.error || "Request failed");
       }
 
       setResult(data);
-      setLoading(false);
     } catch (e: any) {
-      setErrorMsg(e?.message || "Unknown error");
+      setError(e?.message || "Something went wrong");
+    } finally {
       setLoading(false);
     }
   }
 
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontSize: 28, marginBottom: 12 }}>
-        Fort Collins Landscape Design Tool (MVP)
-      </h1>
+      <h1>Fort Collins Landscape Design Tool</h1>
 
-      <div style={{ display: "grid", gap: 12 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <strong>Property address</strong>
-          <input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="e.g., 123 Maple St, Fort Collins, CO"
-            style={{
-              padding: 10,
-              borderRadius: 10,
-              border: "1px solid #ccc",
-            }}
-          />
-        </label>
-
-        <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <strong>Budget</strong>
-            <strong>{formatUSD(budget)}</strong>
-          </div>
-          <div style={{ color: "#555", marginTop: 4 }}>
-            Drag to set your target project budget.
-          </div>
-          <input
-            type="range"
-            min={1000}
-            max={75000}
-            step={500}
-            value={budget}
-            onChange={(e) => setBudget(Number(e.target.value))}
-            style={{ width: "100%", marginTop: 10 }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", color: "#666" }}>
-            <span>{formatUSD(1000)}</span>
-            <span>{formatUSD(75000)}</span>
-          </div>
-        </div>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <strong>Goals / notes</strong>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g., xeriscape + shade + seating + native pollinators"
-            rows={4}
-            style={{
-              padding: 10,
-              borderRadius: 10,
-              border: "1px solid #ccc",
-            }}
-          />
-        </label>
-
-        <button
-          onClick={onGenerate}
-          disabled={loading}
-          style={{
-            padding: 14,
-            borderRadius: 14,
-            border: "1px solid #ccc",
-            background: loading ? "#f0f0f0" : "#eee",
-            fontWeight: 700,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "Generating..." : "Generate Concept"}
-        </button>
-
-        {errorMsg && (
-          <div style={{ color: "crimson", fontWeight: 600 }}>
-            Error: {errorMsg}
-          </div>
-        )}
-
-        {result && (
-          <div style={{ display: "grid", gap: 16 }}>
-            {/* IMAGE (if present) */}
-            {result?.imageBase64 ? (
-              <div>
-                <h3 style={{ marginBottom: 8 }}>Generated concept image</h3>
-                <img
-                  src={`data:image/png;base64,${result.imageBase64}`}
-                  alt="Generated landscape concept"
-                  style={{
-                    width: "100%",
-                    maxWidth: 700,
-                    borderRadius: 14,
-                    border: "1px solid #eee",
-                  }}
-                />
-              </div>
-            ) : (
-              <div style={{ color: "#666" }}>
-                No image returned yet (imageBase64 is missing).
-              </div>
-            )}
-
-            {/* RAW JSON */}
-            <div>
-              <h3 style={{ marginBottom: 8 }}>Raw JSON</h3>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  background: "#fafafa",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: "1px solid #eee",
-                  overflowX: "auto",
-                }}
-              >
-                {pretty}
-              </pre>
-            </div>
-          </div>
-        )}
+      <div style={{ marginTop: 16 }}>
+        <label>Property address</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          style={{ width: "100%", padding: 10, marginTop: 6 }}
+        />
       </div>
+
+      <div style={{ marginTop: 16 }}>
+        <label>Budget: ${budget.toLocaleString()}</label>
+        <input
+          type="range"
+          min={1000}
+          max={75000}
+          step={500}
+          value={budget}
+          onChange={(e) => setBudget(Number(e.target.value))}
+          style={{ width: "100%", marginTop: 6 }}
+        />
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <label>Goals / notes</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="e.g., xeriscape + shade + seating + native pollinators"
+          style={{ width: "100%", padding: 10, marginTop: 6, minHeight: 90 }}
+        />
+      </div>
+
+      <button
+        onClick={onGenerate}
+        disabled={loading}
+        style={{
+          width: "100%",
+          marginTop: 16,
+          padding: 12,
+          borderRadius: 10,
+          fontWeight: 700,
+        }}
+      >
+        {loading ? "Generating..." : "Generate Concept"}
+      </button>
+
+      {error && (
+        <div style={{ marginTop: 16, padding: 12, background: "#ffe6e6" }}>
+          <b>Error:</b> {error}
+        </div>
+      )}
+
+      {result && (
+        <div style={{ marginTop: 24 }}>
+          {result.imageUrl && (
+            <div style={{ marginBottom: 16 }}>
+              <h3>Generated concept image</h3>
+              <img
+                src={result.imageUrl}
+                alt="Generated landscape concept"
+                style={{ width: "100%", maxWidth: 700, borderRadius: 12 }}
+              />
+            </div>
+          )}
+
+          <h3>Concept JSON</h3>
+          <pre style={{ padding: 12, background: "#f4f4f4", overflowX: "auto" }}>
+            {JSON.stringify(result, null, 2)}
+          </pre>
+        </div>
+      )}
     </main>
   );
 }
