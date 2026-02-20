@@ -43,12 +43,10 @@ estimated_high (number)
 `,
         },
       ],
-      // Forces valid JSON
       text: { format: { type: "json_object" } },
     });
 
-    const text = response.output_text; // guaranteed JSON string
-    const concept = JSON.parse(text);
+    const concept = JSON.parse(response.output_text);
 
     return NextResponse.json({
       id: crypto.randomUUID(),
