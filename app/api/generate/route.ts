@@ -1,48 +1,67 @@
-import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { NextResponse } from "next/server";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: Request) {
   try {
     const { address, budget, notes, photo } = await req.json();
 
-    const budgetTier =
-      budget < 8000 ? "starter" : budget < 25000 ? "mid" : "premium";
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "Missing OPENAI_API_KEY in .env.local" },
+        { status: 500 }
+      );
+    }
 
-    const systemPrompt = `
-You are an expert ecological landscape designer in Fort Collins, Colorado.
-You specialize in xeriscape, permaculture, native plants, water-wise design,
-and phased residential implementations.
+    const prompt = `
+You are an ecological landscape designer for Fort Collins, Colorado.
+Generate a concise landscape concept for:
+- address/location: ${address}
+- budget: ${budget}
+- goals/notes: ${notes || "(none)"}
 
-Always respond in structured JSON.
-`;
-
-    const userPrompt = `
-Site address: ${address}
-Budget: $${budget}
-Budget tier: ${budgetTier}
-Client notes: ${notes || "None provided"}
-
-Generate:
-- recommended design focus
-- 4–6 landscape zones
-- phased implementation notes
-- rough cost range
+Return JSON that matches the schema exactly.
 `;
 
     const response = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
+      model: "gpt-4.1-mini", // you can change later
+      input: prompt,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "landscape_concept",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              budgetTier: { type: "string" },
+              recommendedFocus: { type: "string" },
+              sampleZones: { type: "array", items: { type: "string" } },
+              roughCostBuckets: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  demo_range_low: { type: "number" },
+                  demo_range_high: { type: "number" }
+                },
+                required: ["demo_range_low", "demo_range_high"]
+              }
+            },
+            required: ["budgetTier", "recommendedFocus", "sampleZones", "roughCostBuckets"]
+          }
+        }
+      }
     });
 
-    const aiOutput = JSON.parse(response.output_text);
+    // The SDK returns a convenience string on many responses:
+    const outputText =
+      // @ts-ignore
+      response.output_text ??
+      JSON.stringify(response);
+
+    const concept = JSON.parse(outputText);
 
     return NextResponse.json({
       id: crypto.randomUUID(),
@@ -52,12 +71,12 @@ Generate:
       photo: photo
         ? { name: photo.name, type: photo.type, size: photo.size }
         : null,
-      concept: aiOutput,
+      concept
     });
-  } catch (error: any) {
-    console.error("AI generation error:", error);
+  } catch (err: any) {
+    console.error("AI generation error:", err);
     return NextResponse.json(
-      { error: "Failed to generate concept" },
+      { error: err?.message || "Unknown server error" },
       { status: 500 }
     );
   }
