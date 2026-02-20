@@ -1,47 +1,66 @@
+import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 export async function POST(req: Request) {
-  const { address, budget, notes, photo } = await req.json();
-  
-  // Simulate "thinking" so it feels real in the demo
-  await new Promise((r) => setTimeout(r, 900));
+  try {
+    const { address, budget, notes } = await req.json();
 
-  const budgetTier =
-    budget < 8000 ? "starter" : budget < 25000 ? "mid" : "premium";
-
-  const recommendedFocus =
-    budgetTier === "starter"
-      ? "High-impact, low-cost xeriscape upgrades + simple phase plan."
-      : budgetTier === "mid"
-      ? "Full concept + phased implementation (hardscape + planting)."
-      : "Premium integrated build (features + hardscape + irrigation + planting).";
-
-  return NextResponse.json({
-  id: crypto.randomUUID(),
-  address,
-  budget,
-  notes,
-  photo: photo
-    ? {
-        name: photo.name,
-        type: photo.type,
-        size: photo.size
-      }
-    : null,
-  concept: {
-    budgetTier,
-    recommendedFocus,
-    sampleZones: [
-      "Entry xeriscape planting bed",
-      "Backyard shade + seating pocket",
-      "Pollinator corridor strip",
-      "Water-smart drip zones"
-    ],
-    roughCostBuckets: {
-      demo_range_low: Math.round(budget * 0.85),
-      demo_range_high: Math.round(budget * 1.15)
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "Missing OPENAI_API_KEY in .env.local" },
+        { status: 500 }
+      );
     }
-  }
-});
 
+    const budgetTier =
+      budget < 8000 ? "starter" : budget < 25000 ? "mid" : "premium";
+
+    const response = await openai.responses.create({
+      model: "gpt-4o-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a professional regenerative landscape designer in Fort Collins, Colorado. Be practical, cost-aware, and implementation-oriented.",
+        },
+        {
+          role: "user",
+          content: `Create a landscape concept for:
+Address: ${address}
+Budget: $${budget} (${budgetTier})
+Goals/Notes: ${notes}
+
+Return ONLY valid JSON with the following keys:
+design_summary (string)
+recommended_features (array of 5 strings)
+phased_plan (array of 3 strings)
+plant_palette (array of 8-12 strings)
+irrigation_strategy (string)
+estimated_low (number)
+estimated_high (number)
+`,
+        },
+      ],
+      // Forces valid JSON
+      text: { format: { type: "json_object" } },
+    });
+
+    const text = response.output_text; // guaranteed JSON string
+    const concept = JSON.parse(text);
+
+    return NextResponse.json({
+      id: crypto.randomUUID(),
+      address,
+      budget,
+      notes,
+      concept,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message ?? "AI generation failed." },
+      { status: 500 }
+    );
+  }
 }
